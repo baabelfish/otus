@@ -15,17 +15,17 @@
 namespace otus {
 
 template<typename... Components>
-    class ES {
+    class ECS {
     public:
         struct System;
         using Entity = typename EntityHelper<Components...>::Entity;
         std::hash<std::bitset<sizeof...(Components)>> hashf;
 
-        ES():
+        ECS():
             entities(),
             entities_by_hash(),
             systems() {}
-        virtual ~ES();
+        virtual ~ECS();
 
         template<typename S, typename... CArgs> void addSystem(CArgs&&... args);
         template<typename... Args, typename F> void to(size_t id, F f);
@@ -68,7 +68,7 @@ template<typename... Components>
 
 template<typename... Components>
 template<typename... Args, typename F>
-void ES<Components...>::to(size_t id, F f) {
+void ECS<Components...>::to(size_t id, F f) {
     auto smask = Helpers<Components...>::template bitmaskFromVarargs<Args...>();
     auto e = entities.find(id);
     if ((e->second->mask & smask) == smask) {
@@ -79,31 +79,31 @@ void ES<Components...>::to(size_t id, F f) {
 }
 
 template<typename... Components>
-ES<Components...>::~ES() {
+ECS<Components...>::~ECS() {
     for (auto x : entities) delete x.second;
     for (auto x : systems) delete x;
 }
 
 template<typename... Components>
 template<typename... Params>
-void ES<Components...>::update(Params... params) {
+void ECS<Components...>::update(Params... params) {
     for (auto&& s : systems)
         s->update(std::forward<Params>(params)...);
 }
 
 template<typename... Components>
 template<typename S, typename... CArgs>
-    void ES<Components...>::addSystem(CArgs&&... args) {
+    void ECS<Components...>::addSystem(CArgs&&... args) {
         auto system = new S(std::forward<CArgs>(args)...);
         system->god = this;
         systems.emplace_back(std::move(system));
     }
 
 template<typename... Components>
-    void ES<Components...>::debug() const {
+    void ECS<Components...>::debug() const {
         std::cout << std::endl;
         std::cout << std::endl;
-        std::cout << "System " << typeid(ES<Components...>).hash_code() << ":" << std::endl;
+        std::cout << "System " << typeid(ECS<Components...>).hash_code() << ":" << std::endl;
         std::cout << "========================" << std::endl;
         std::cout << "Entities: " << entities.size() << std::endl;
         std::cout << "Systems: " << systems.size() << std::endl;
@@ -116,7 +116,7 @@ template<typename... Components>
 
 template<typename... Components>
 template<typename... Args>
-    auto ES<Components...>::add(size_t amount) {
+    auto ECS<Components...>::add(size_t amount) {
         std::vector<size_t> ids;
         for (std::size_t i = 0; i < amount; ++i)
             ids.push_back(add<Args...>());
@@ -125,7 +125,7 @@ template<typename... Args>
 
 template<typename... Components>
 template<typename... Args>
-    size_t ES<Components...>::add() {
+    size_t ECS<Components...>::add() {
         static_assert(sizeof...(Args), "Can't instansiate an entity with no components");
         using EC = typename EntityHelper<Components...>::template EntityConstructor<Args...>;
         Entity* e = new EC();
@@ -138,7 +138,7 @@ template<typename... Args>
     }
 
 template<typename... Components>
-void ES<Components...>::remove(size_t id) {
+void ECS<Components...>::remove(size_t id) {
     auto it = entities.find(id);
     if (it != entities.end()) {
         for (auto& ecache : entities_by_hash) {
@@ -152,19 +152,19 @@ void ES<Components...>::remove(size_t id) {
 }
 
 template<typename... Components>
-void ES<Components...>::each(std::function<void(size_t)> f) {
+void ECS<Components...>::each(std::function<void(size_t)> f) {
     for (auto& e : entities)
         f(e.first);
 }
 
 template<typename... Components>
-size_t ES<Components...>::size() const {
+size_t ECS<Components...>::size() const {
     return entities.size();
 }
 
 template<typename... Components>
-struct ES<Components...>::System {
-    friend class ES<Components...>;
+struct ECS<Components...>::System {
+    friend class ECS<Components...>;
     virtual void update() {}
     virtual ~System() {}
 
@@ -174,7 +174,7 @@ protected:
             god->each<OtherArgs...>(f);
         }
 private:
-    ES<Components...>* god;
+    ECS<Components...>* god;
 };
 
 } // namespace otus
