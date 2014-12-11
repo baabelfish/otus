@@ -15,10 +15,10 @@ template<typename... Components>
 
             Entity(std::bitset<sizeof...(Components)> bm):
                 id(helpers::uniqueId<EntityHelper<Components...>>()),
-                mask(bm) {
-            }
+                mask(bm) {}
 
             virtual ~Entity() {}
+
             template<typename C>
             auto& component() {
                 return *tmp::tuple_at<C*>(components);

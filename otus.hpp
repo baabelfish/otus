@@ -17,7 +17,6 @@ namespace otus {
 template<typename... Components>
     struct ES {
         // == Meta helpers ================================================================
-        using Seq = std::index_sequence_for<Components...>;
         using Entity = typename EntityHelper<Components...>::Entity;
         std::hash<std::bitset<sizeof...(Components)>> hashf;
 
@@ -153,9 +152,8 @@ void ES<Components...>::remove(size_t id) {
     if (it != entities.end())
         for (auto& ecache : entities_by_hash) {
             auto sit = std::lower_bound(ecache.second.begin(), ecache.second.end(), it->second);
-            if (*sit == it->second) {
+            if (*sit == it->second)
                 ecache.second.erase(sit);
-            }
         }
         entities.erase(it);
         delete it->second;
