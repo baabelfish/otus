@@ -67,4 +67,5 @@ int main() {
     es.update();
     es.remove(3);
     es.update();
+    es.debug();
 }

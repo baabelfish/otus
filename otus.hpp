@@ -15,28 +15,11 @@
 namespace otus {
 
 template<typename... Components>
-    struct ES {
-        // == Meta helpers ================================================================
+    class ES {
+    public:
+        struct System;
         using Entity = typename EntityHelper<Components...>::Entity;
         std::hash<std::bitset<sizeof...(Components)>> hashf;
-
-        struct System {
-            friend struct ES<Components...>;
-            virtual void update() {}
-            virtual ~System() {}
-
-        protected:
-            template<typename... OtherArgs, typename F>
-                void entities(F f) {
-                    god->each<OtherArgs...>(f);
-                }
-        private:
-            ES<Components...>* god;
-        };
-
-        std::map<size_t, Entity*> entities;
-        std::unordered_map<size_t, std::vector<Entity*>> entities_by_hash;
-        std::vector<System*> systems;
 
         ES():
             entities(),
@@ -45,31 +28,16 @@ template<typename... Components>
         virtual ~ES();
 
         template<typename S, typename... CArgs> void addSystem(CArgs&&... args);
+        template<typename... Args, typename F> void to(size_t id, F f);
         template<typename... Args> auto add(size_t amount);
         template<typename... Args> size_t add();
-
-        void remove(size_t id);
-        void each(std::function<void(size_t)> f);
-        size_t size() const;
+        template<typename... Params> void update(Params... params);
         void debug() const;
+        void each(std::function<void(size_t)> f);
+        void remove(size_t id);
+        size_t size() const;
 
-        template<typename... Params>
-        void update(Params... params) {
-            for (auto&& s : systems)
-                s->update(std::forward<Params>(params)...);
-        }
-
-        template<typename... Args, typename F>
-        void to(size_t id, F f) {
-            auto smask = Helpers<Components...>::template bitmaskFromVarargs<Args...>();
-            auto e = entities.find(id);
-            if ((e->second->mask & smask) == smask) {
-                std::tuple<Args*...> params;
-                Helpers<Components...>::template populateParams<0>(e->second->components, params);
-                tmp::call(f, std::move(params));
-            }
-        }
-
+        // TODO: get the definition out of here
         template<typename... Args, typename F,
             typename std::enable_if<sizeof...(Args) >= 1>::type* = nullptr>
             void each(F f) {
@@ -81,7 +49,6 @@ template<typename... Components>
                     Helpers<Components...>::template populateParams<0>(e->components, params);
                     tmp::call(f, e->id, std::move(params));
                 };
-
                 if (ecache != entities_by_hash.end())
                     for (auto& e : ecache->second)
                         c(e);
@@ -91,13 +58,37 @@ template<typename... Components>
                             entities_by_hash[hash].push_back(e.second),
                             c(e.second);
             }
+
+    private:
+        std::map<size_t, Entity*> entities;
+        std::unordered_map<size_t, std::vector<Entity*>> entities_by_hash;
+        std::vector<System*> systems;
     };
 
+
+template<typename... Components>
+template<typename... Args, typename F>
+void ES<Components...>::to(size_t id, F f) {
+    auto smask = Helpers<Components...>::template bitmaskFromVarargs<Args...>();
+    auto e = entities.find(id);
+    if ((e->second->mask & smask) == smask) {
+        std::tuple<Args*...> params;
+        Helpers<Components...>::template populateParams<0>(e->second->components, params);
+        tmp::call(f, std::move(params));
+    }
+}
 
 template<typename... Components>
 ES<Components...>::~ES() {
     for (auto x : entities) delete x.second;
     for (auto x : systems) delete x;
+}
+
+template<typename... Components>
+template<typename... Params>
+void ES<Components...>::update(Params... params) {
+    for (auto&& s : systems)
+        s->update(std::forward<Params>(params)...);
 }
 
 template<typename... Components>
@@ -149,7 +140,7 @@ template<typename... Args>
 template<typename... Components>
 void ES<Components...>::remove(size_t id) {
     auto it = entities.find(id);
-    if (it != entities.end())
+    if (it != entities.end()) {
         for (auto& ecache : entities_by_hash) {
             auto sit = std::lower_bound(ecache.second.begin(), ecache.second.end(), it->second);
             if (*sit == it->second)
@@ -157,6 +148,7 @@ void ES<Components...>::remove(size_t id) {
         }
         entities.erase(it);
         delete it->second;
+    }
 }
 
 template<typename... Components>
@@ -169,5 +161,20 @@ template<typename... Components>
 size_t ES<Components...>::size() const {
     return entities.size();
 }
+
+template<typename... Components>
+struct ES<Components...>::System {
+    friend class ES<Components...>;
+    virtual void update() {}
+    virtual ~System() {}
+
+protected:
+    template<typename... OtherArgs, typename F>
+        void entities(F f) {
+            god->each<OtherArgs...>(f);
+        }
+private:
+    ES<Components...>* god;
+};
 
 } // namespace otus

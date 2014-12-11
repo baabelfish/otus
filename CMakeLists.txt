@@ -11,6 +11,11 @@ message(${CMAKE_SOURCE_DIR})
 include_directories(include)
 
 set(SOURCES
+src/component.hpp
+src/entity.hpp
+src/helpers.hpp
+src/tmp.hpp
+src/traits.hpp
 )
 
 set(TESTS
