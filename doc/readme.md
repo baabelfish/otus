@@ -154,12 +154,13 @@ struct GraphicsSystem : public MyVeryOwnECS::System {
 ...
 
 size_t createSomething(ECS& ecs, float x, float y) {
-    return ecs.add<Position, Speed, Looks>([&](Position& p, Speed& s) {
+    return ecs.add<Position, Speed, Looks>([&](Position& p, Speed& s, Looks& l) {
         p.x = x;
         p.y = y;
         s.dx = 0;
         s.dy = 0;
         s.value = 0;
+        l.sprite.loadFromFile("my_cool_sprite.png");
     });
 }
 
