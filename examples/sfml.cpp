@@ -2,6 +2,10 @@
 #include <SFML/Graphics.hpp>
 #include <random>
 
+struct Weight {
+    float value = 0;
+};
+
 struct Style {
     float radius;
     sf::Color color;
@@ -12,8 +16,19 @@ struct Position : public sf::Vector2f {};
 using ECS =
     otus::ES<
         Position,
-        Style
+        Style,
+        Weight
     >;
+
+struct PhysicsSystem : public ECS::System {
+    void update() override {
+        entities<Position, Weight>([&](size_t, Position& p, Weight& w) {
+            p.y += w.value;
+            w.value += 0.01;
+            p.y = (int)p.y % 600;
+        });
+    }
+};
 
 struct TremorSystem : public ECS::System {
     void update() override {
@@ -41,12 +56,15 @@ struct DrawSystem : public ECS::System {
 };
 
 size_t addEntity(ECS& ecs, float x = 0, float y = 0, float radius = 5) {
-    auto handle = ecs.add<Position, Style>();
+    bool has_physics =rand() % 100 < 20;
+    auto handle = has_physics
+        ? ecs.add<Position, Style, Weight>()
+        : ecs.add<Position, Style>();
     ecs.to<Position, Style>(handle, [=](Position& p, Style& s) {
         p.x = x;
         p.y = y;
         s.radius = radius;
-        s.color = { 255, 0, 0 };
+        s.color = has_physics ? sf::Color{ 255, 255, 255 } : sf::Color{ 255, 0, 0 };
     });
     return handle;
 }
@@ -55,11 +73,12 @@ int main() {
     srand(1337);
     sf::RenderWindow window(sf::VideoMode(800, 600), "float");
     ECS ecs;
+    ecs.addSystem<PhysicsSystem>();
     ecs.addSystem<TremorSystem>();
     ecs.addSystem<DrawSystem>(window);
 
-    for (std::size_t i = 0; i < 100; ++i) {
-        addEntity(ecs, rand() % 800, rand() % 600, rand() % 20 + 5);
+    for (std::size_t i = 0; i < 2000; ++i) {
+        addEntity(ecs, rand() % 800, rand() % 600, rand() % 5 + 1);
     }
 
     while (window.isOpen()) {
