@@ -59,7 +59,7 @@ the function.
 * NOTE: I'll get rid of the template parameters
 
 ```cpp
-ecs.to<Position, Radius>(3, [](Position& p, Radius& r) {
+ecs.to(3, [](Position& p, Radius& r) {
     p.x = 42;
     p.y = 1337;
     r.value = 715517;

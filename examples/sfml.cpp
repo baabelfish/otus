@@ -2,6 +2,8 @@
 #include <SFML/Graphics.hpp>
 #include <random>
 
+struct Position : public sf::Vector2f {};
+
 struct Weight {
     float value = 0;
 };
@@ -10,8 +12,6 @@ struct Style {
     float radius;
     sf::Color color;
 };
-
-struct Position : public sf::Vector2f {};
 
 using ECS =
     otus::ES<
@@ -56,11 +56,11 @@ struct DrawSystem : public ECS::System {
 };
 
 size_t addEntity(ECS& ecs, float x = 0, float y = 0, float radius = 5) {
-    bool has_physics =rand() % 100 < 20;
+    bool has_physics = rand() % 100 < 20;
     auto handle = has_physics
         ? ecs.add<Position, Style, Weight>()
         : ecs.add<Position, Style>();
-    ecs.to<Position, Style>(handle, [=](Position& p, Style& s) {
+    ecs.to(handle, [=](Position& p, Style& s) {
         p.x = x;
         p.y = y;
         s.radius = radius;

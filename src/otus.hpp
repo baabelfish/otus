@@ -18,7 +18,7 @@ template<typename... Components>
     public:
         struct System;
         using Entity = typename EntityHelper<Components...>::Entity;
-        std::hash<std::bitset<sizeof...(Components)>> hashf;
+        static const std::hash<std::bitset<sizeof...(Components)>> hashf;
 
         ES():
             entities(),
@@ -26,10 +26,10 @@ template<typename... Components>
             systems() {}
         virtual ~ES();
 
+        template<typename F> void to(size_t id, F f);
         template<typename S, typename... CArgs> void addSystem(CArgs&&... args);
-        template<typename... Args, typename F> void to(size_t id, F f);
-        template<typename... Args> auto add(size_t amount);
         template<typename... Args> size_t add();
+        template<typename... Args, typename F> size_t add(F f);
         template<typename... Params> void update(Params... params);
         void debug() const;
         void each(std::function<void(size_t)> f);
@@ -46,7 +46,7 @@ template<typename... Components>
                 auto c = [&](Entity* e) {
                     std::tuple<Args*...> params;
                     Helpers<Components...>::template populateParams<0>(e->components, params);
-                    tmp::call(f, e->id, std::move(params));
+                    tmp::apply(f, e->id, std::move(params));
                 };
                 if (ecache != entities_by_hash.end())
                     for (auto& e : ecache->second)
@@ -62,33 +62,55 @@ template<typename... Components>
         std::map<size_t, Entity*> entities;
         std::unordered_map<size_t, std::vector<Entity*>> entities_by_hash;
         std::vector<System*> systems;
+
+        template<typename... Args, typename F> void to(Entity* e, F f);
+        template<typename... Args> auto _add();
+        template<template<typename...> class T, typename... Args, typename F>
+            void _to(T<Args...>*, size_t id, F f);
     };
 
 
+// ================================================================================
 template<typename... Components>
-template<typename... Args, typename F>
-void ES<Components...>::to(size_t id, F f) {
-    auto smask = Helpers<Components...>::template bitmaskFromVarargs<Args...>();
-    auto e = entities.find(id);
-    if ((e->second->mask & smask) == smask) {
-        std::tuple<Args*...> params;
-        Helpers<Components...>::template populateParams<0>(e->second->components, params);
-        tmp::call(f, std::move(params));
+    ES<Components...>::~ES() {
+        for (auto x : entities) delete x.second;
+        for (auto x : systems) delete x;
     }
-}
 
 template<typename... Components>
-ES<Components...>::~ES() {
-    for (auto x : entities) delete x.second;
-    for (auto x : systems) delete x;
-}
+template<typename... Args, typename F>
+    void ES<Components...>::to(Entity* e, F f) {
+        auto smask = Helpers<Components...>::template bitmaskFromVarargs<Args...>();
+        if ((e->mask & smask) == smask) {
+            std::tuple<typename std::remove_pointer<typename std::remove_reference<Args>::type>::type*...> params;
+            Helpers<Components...>::template populateParams<0>(e->components, params);
+            tmp::apply(f, std::move(params));
+        }
+    }
+
+template<typename... Components>
+template<typename F>
+    void ES<Components...>::to(size_t id, F f) {
+        using FT = tmp::function_traits<F>;
+        typename FT::param_types* t = nullptr;
+        _to(t, id, f);
+    }
+
+template<typename... Components>
+template<template<typename...> class T, typename... Args, typename F>
+    void ES<Components...>::_to(T<Args...>*, size_t id, F f) {
+        auto e = entities.find(id);
+        if (e != entities.end()) {
+            to<Args...>(e->second, f);
+        }
+    }
 
 template<typename... Components>
 template<typename... Params>
-void ES<Components...>::update(Params... params) {
-    for (auto&& s : systems)
-        s->update(std::forward<Params>(params)...);
-}
+    void ES<Components...>::update(Params... params) {
+        for (auto&& s : systems)
+            s->update(std::forward<Params>(params)...);
+    }
 
 template<typename... Components>
 template<typename S, typename... CArgs>
@@ -115,16 +137,7 @@ template<typename... Components>
 
 template<typename... Components>
 template<typename... Args>
-    auto ES<Components...>::add(size_t amount) {
-        std::vector<size_t> ids;
-        for (std::size_t i = 0; i < amount; ++i)
-            ids.push_back(add<Args...>());
-        return ids;
-    }
-
-template<typename... Components>
-template<typename... Args>
-    size_t ES<Components...>::add() {
+    auto ES<Components...>::_add() {
         static_assert(sizeof...(Args), "Can't instansiate an entity with no components");
         using EC = typename EntityHelper<Components...>::template EntityConstructor<Args...>;
         Entity* e = new EC();
@@ -133,47 +146,61 @@ template<typename... Args>
         for (auto& ecache : entities_by_hash)
             if (hash == ecache.first)
                 ecache.second.push_back(e);
-        return e->id;
+        return e;
     }
 
 template<typename... Components>
-void ES<Components...>::remove(size_t id) {
-    auto it = entities.find(id);
-    if (it != entities.end()) {
-        for (auto& ecache : entities_by_hash) {
-            auto sit = std::lower_bound(ecache.second.begin(), ecache.second.end(), it->second);
-            if (*sit == it->second)
-                ecache.second.erase(sit);
-        }
-        entities.erase(it);
-        delete it->second;
+template<typename... Args, typename F>
+    size_t ES<Components...>::add(F f) {
+        auto entity = _add<Args...>();
+        to<Args...>(entity, f);
+        return entity->id;
     }
-}
 
 template<typename... Components>
-void ES<Components...>::each(std::function<void(size_t)> f) {
-    for (auto& e : entities)
-        f(e.first);
-}
+template<typename... Args>
+    size_t ES<Components...>::add() {
+        return _add<Args...>()->id;
+    }
 
 template<typename... Components>
-size_t ES<Components...>::size() const {
-    return entities.size();
-}
-
-template<typename... Components>
-struct ES<Components...>::System {
-    friend class ES<Components...>;
-    virtual void update() {}
-    virtual ~System() {}
-
-protected:
-    template<typename... OtherArgs, typename F>
-        void entities(F f) {
-            god->each<OtherArgs...>(f);
+    void ES<Components...>::remove(size_t id) {
+        auto it = entities.find(id);
+        if (it != entities.end()) {
+            for (auto& ecache : entities_by_hash) {
+                auto sit = std::lower_bound(ecache.second.begin(), ecache.second.end(), it->second);
+                if (*sit == it->second)
+                    ecache.second.erase(sit);
+            }
+            entities.erase(it);
+            delete it->second;
         }
-private:
-    ES<Components...>* god;
-};
+    }
+
+template<typename... Components>
+    void ES<Components...>::each(std::function<void(size_t)> f) {
+        for (auto& e : entities)
+            f(e.first);
+    }
+
+template<typename... Components>
+    size_t ES<Components...>::size() const {
+        return entities.size();
+    }
+
+template<typename... Components>
+    struct ES<Components...>::System {
+        friend class ES<Components...>;
+        virtual void update() {}
+        virtual ~System() {}
+
+    protected:
+        template<typename... OtherArgs, typename F>
+            void entities(F f) {
+                god->each<OtherArgs...>(f);
+            }
+    private:
+        ES<Components...>* god;
+    };
 
 } // namespace otus

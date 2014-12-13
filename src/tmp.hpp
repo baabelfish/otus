@@ -26,22 +26,50 @@ namespace internal {
 } // namespace
 
 namespace tmp {
+    template<typename F>
+    struct function_traits;
+
+    template<typename R, typename... Args>
+    struct function_traits<R(Args...)> {
+        using return_type = R;
+        using param_types = std::tuple<Args...>;
+    };
+
+    template<typename T, typename R, typename... Args>
+    struct function_traits<R(T::*)(Args...) const> {
+        using return_type = R;
+        using param_types = std::tuple<Args...>;
+    };
+
+    template<typename R, typename... Args>
+    struct function_traits<R(*)(Args...)> : function_traits<R(Args...)> {};
+
+    template<typename Class, typename R>
+    struct function_traits<R(Class::*)> {};
+
+    template<typename Class, typename R, typename... Args>
+    struct function_traits<R(Class::*)(Args...)> : public function_traits<R(Class&, Args...)> {};
+
+    template<typename T> struct function_traits : public function_traits<decltype(&T::operator())> {};
+
+
+    // == Apply ============================================================
     template<typename F, template<typename...> class Params, typename... Args, std::size_t... I>
-        auto call_helper(F& f, Params<Args...>&& params, std::index_sequence<I...>) {
+        auto apply_helper(F& f, Params<Args...>&& params, std::index_sequence<I...>) {
             return f(*std::get<I>(params)...);
         }
     template<typename F, template<typename...> class Params, typename... Args>
-        auto call(F& f, Params<Args...>&& params) {
-            return call_helper(f, std::move(params), std::index_sequence_for<Args...>{});
+        auto apply(F& f, Params<Args...>&& params) {
+            return apply_helper(f, std::move(params), std::index_sequence_for<Args...>{});
         }
 
     template<typename F, template<typename...> class Params, typename... Args, std::size_t... I>
-        auto call_helper(F& f, size_t id, Params<Args...>&& params, std::index_sequence<I...>) {
+        auto apply_helper(F& f, size_t id, Params<Args...>&& params, std::index_sequence<I...>) {
             return f(id, *std::get<I>(params)...);
         }
     template<typename F, template<typename...> class Params, typename... Args>
-        auto call(F& f, size_t id, Params<Args...>&& params) {
-            return call_helper(f, id, std::move(params), std::index_sequence_for<Args...>{});
+        auto apply(F& f, size_t id, Params<Args...>&& params) {
+            return apply_helper(f, id, std::move(params), std::index_sequence_for<Args...>{});
         }
 
     template<typename Target, class Tuple>

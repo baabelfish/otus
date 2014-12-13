@@ -21,6 +21,6 @@ src/traits.hpp
 set(TESTS
 )
 
-add_executable(main examples/main.cpp ${SOURCES})
+# add_executable(main examples/main.cpp ${SOURCES})
 add_executable(sfml examples/sfml.cpp ${SOURCES})
 # add_executable(ytest ${SOURCES} ${TESTS})
