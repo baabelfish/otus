@@ -91,7 +91,7 @@ ecs.debug();
 Runs a function to all entities with a set of components.
 
 ```cpp
-ecs.each<Position, Speed>([](size_t id, Position& p, Speed& s) {
+ecs.each([](size_t id, Position& p, Speed& s) {
     p.x += s.dx * s.value;
     p.y += s.dy * s.value;
 });
@@ -134,7 +134,7 @@ ECS ecs;
 
 struct MoveSystem : public MyVeryOwnECS::System {
     void update(double time) override {
-        entities<Position, Speed>([&](size_t id, Position& p, Speed& l) {
+        entities([&](size_t id, Position& p, Speed& l) {
             p.x += s.dx * s.value * timeywimeystuff(time);
             p.y += s.dy * s.value * timeywimeystuff(time);
         });
@@ -145,7 +145,7 @@ struct GraphicsSystem : public MyVeryOwnECS::System {
     Renderer& renderer;
     GraphicsSystem(Renderer& renderer): renderer(renderer) {}
     void update() override {
-        entities<Position, Looks>([&](size_t id, Position& p, Looks& l) {
+        entities([&](size_t id, Position& p, Looks& l) {
             renderer.draw(p.x, p.y, l.sprite);
         });
     }

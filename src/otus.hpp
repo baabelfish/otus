@@ -36,6 +36,18 @@ template<typename... Components>
         void remove(size_t id);
         size_t size() const;
 
+        template<template<typename...> class T, typename ID, typename... Args, typename F>
+            void _each(T<ID, Args...>*, F f) {
+                each<Args...>(f);
+            }
+
+        template<typename F>
+            void each(F f) {
+                using FT = tmp::function_traits<F>;
+                typename FT::param_types* t = nullptr;
+                _each(t, f);
+            }
+
         // TODO: get the definition out of here
         template<typename... Args, typename F,
             typename std::enable_if<sizeof...(Args) >= 1>::type* = nullptr>
@@ -82,7 +94,7 @@ template<typename... Args, typename F>
     void ES<Components...>::to(Entity* e, F f) {
         auto smask = Helpers<Components...>::template bitmaskFromVarargs<Args...>();
         if ((e->mask & smask) == smask) {
-            std::tuple<typename std::remove_pointer<typename std::remove_reference<Args>::type>::type*...> params;
+            std::tuple<Args*...> params;
             Helpers<Components...>::template populateParams<0>(e->components, params);
             tmp::apply(f, std::move(params));
         }

@@ -32,13 +32,14 @@ namespace tmp {
     template<typename R, typename... Args>
     struct function_traits<R(Args...)> {
         using return_type = R;
-        using param_types = std::tuple<Args...>;
+        using param_types = std::tuple<typename std::remove_pointer<typename std::remove_reference<Args>::type>::type...>;
     };
 
     template<typename T, typename R, typename... Args>
     struct function_traits<R(T::*)(Args...) const> {
         using return_type = R;
-        using param_types = std::tuple<Args...>;
+        // using param_types = std::tuple<Args...>;
+        using param_types = std::tuple<typename std::remove_pointer<typename std::remove_reference<Args>::type>::type...>;
     };
 
     template<typename R, typename... Args>

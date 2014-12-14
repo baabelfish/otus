@@ -22,7 +22,7 @@ using ECS =
 
 struct PhysicsSystem : public ECS::System {
     void update() override {
-        entities<Position, Weight>([&](size_t, Position& p, Weight& w) {
+        entities([&](size_t, Position& p, Weight& w) {
             p.y += w.value;
             w.value += 0.01;
             p.y = (int)p.y % 600;
@@ -32,7 +32,7 @@ struct PhysicsSystem : public ECS::System {
 
 struct TremorSystem : public ECS::System {
     void update() override {
-        entities<Position>([&](size_t, Position& p) {
+        entities([&](size_t, Position& p) {
             float tx = rand() % 100 - 50,
                   ty = rand() % 100 - 50;
             p.x += tx / 50;
@@ -46,7 +46,7 @@ struct DrawSystem : public ECS::System {
     DrawSystem(sf::RenderWindow& rw): rw(rw) {}
     void update() override {
         static sf::CircleShape cs;
-        entities<Position, Style>([&](size_t, Position& p, Style& s) {
+        entities([&](size_t, Position& p, Style& s) {
             cs.setFillColor(s.color);
             cs.setRadius(s.radius);
             cs.setPosition(p);
