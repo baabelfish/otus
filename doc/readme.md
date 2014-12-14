@@ -119,7 +119,7 @@ struct GraphicsSystem : public MyVeryOwnECS::System {
     GraphicsSystem(Renderer& renderer): renderer(renderer) {}
 
     void update() override {
-        entities<Position, Looks>([&](size_t id, Position& p, Looks& l) {
+        entities([&](size_t id, Position& p, Looks& l) {
             std::cout << "Drawing entity: " << id << std::endl;
             renderer.draw(p.x, p.y, l.sprite);
         });
