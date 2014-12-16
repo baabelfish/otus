@@ -20,8 +20,23 @@ using ECS =
         Weight
     >;
 
+struct Eventti {
+    std::string msg;
+};
+
 struct PhysicsSystem : public ECS::System {
+    void configure() {
+        subscribe<Eventti>([](const Eventti& e) {
+            std::cout << e.msg << std::endl;
+        });
+    }
+
     void update() override {
+        static size_t times = 0;
+        ++times;
+        if (times == 150) {
+            unsubscribe<Eventti>();
+        }
         entities([&](size_t, Position& p, Weight& w) {
             p.y += w.value;
             w.value += 0.01;
@@ -37,6 +52,10 @@ struct TremorSystem : public ECS::System {
                   ty = rand() % 100 - 50;
             p.x += tx / 50;
             p.y += ty / 50;
+
+            if ((int)p.x % 600 == 0) {
+                emit(Eventti{ "Jei!" });
+            }
         });
     }
 };
@@ -51,6 +70,7 @@ struct DrawSystem : public ECS::System {
             cs.setRadius(s.radius);
             cs.setPosition(p);
             rw.draw(cs);
+            Emitter::emit(Eventti{std::to_string(p.x) + ":" + std::to_string(p.y)});
         });
     }
 };
@@ -77,7 +97,7 @@ int main() {
     ecs.addSystem<TremorSystem>();
     ecs.addSystem<DrawSystem>(window);
 
-    for (std::size_t i = 0; i < 2000; ++i) {
+    for (std::size_t i = 0; i < 200; ++i) {
         addEntity(ecs, rand() % 800, rand() % 600, rand() % 5 + 1);
     }
 

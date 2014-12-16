@@ -1,13 +1,16 @@
 #pragma once
 
 #include "entity.hpp"
+#include "events.hpp"
 #include "helpers.hpp"
 #include "tmp.hpp"
+#include "eventmanager.hpp"
 #include <algorithm>
 #include <cassert>
 #include <functional>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -74,6 +77,7 @@ template<typename... Components>
         std::map<size_t, Entity*> entities;
         std::unordered_map<size_t, std::vector<Entity*>> entities_by_hash;
         std::vector<System*> systems;
+        EventManager em;
 
         template<typename... Args, typename F> void to(Entity* e, F f);
         template<typename... Args> auto _add();
@@ -129,6 +133,7 @@ template<typename S, typename... CArgs>
     void ES<Components...>::addSystem(CArgs&&... args) {
         auto system = new S(std::forward<CArgs>(args)...);
         system->god = this;
+        system->configure();
         systems.emplace_back(std::move(system));
     }
 
@@ -204,6 +209,7 @@ template<typename... Components>
     struct ES<Components...>::System {
         friend class ES<Components...>;
         virtual void update() {}
+        virtual void configure() {}
         virtual ~System() {}
 
     protected:
@@ -211,6 +217,30 @@ template<typename... Components>
             void entities(F f) {
                 god->each<OtherArgs...>(f);
             }
+
+        template<typename T>
+            void subscribe(std::function<void(const T&)>&& f) {
+                assert(god);
+                god->em.template subscribe<T>(this, std::move(f));
+            }
+
+        template<typename T>
+            void unsubscribe() {
+                assert(god);
+                god->em.template unsubscribe<T>(this);
+            }
+
+        void unsubscribe() {
+            assert(god);
+            god->em.unsubscribe(this);
+        }
+
+        template<typename T>
+            void emit(T event) {
+                assert(god);
+                god->em.emit(std::move(event));
+            }
+
     private:
         ES<Components...>* god;
     };
