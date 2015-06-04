@@ -85,6 +85,10 @@ template<typename... Components>
             void _to(T<Args...>*, size_t id, F f);
     };
 
+template<typename... Components>
+const std::hash<std::bitset<sizeof...(Components)>> ES<Components...>::hashf{};
+
+
 
 // ================================================================================
 template<typename... Components>

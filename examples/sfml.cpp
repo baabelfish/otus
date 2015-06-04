@@ -25,12 +25,11 @@ struct Eventti {
 };
 
 struct PhysicsSystem : public ECS::System {
-    void configure() {
+    void configure() override {
         subscribe<Eventti>([](const Eventti& e) {
             std::cout << e.msg << std::endl;
         });
     }
-
     void update() override {
         static size_t times = 0;
         ++times;
